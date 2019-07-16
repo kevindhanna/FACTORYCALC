@@ -1,46 +1,64 @@
 require "json"
 require "uri"
+require "dotenv"
 
-recipepath = File.join("..","input-data","recipe-lister","recipe.json")
-recipiefile = File.read(recipepath)
-RECIPES = JSON.parse(recipiefile)
 
-def get_ingredients(product, amount = 1)
-    return nil if RECIPES[product].nil?
-    ingredients = {}
-    RECIPES[product]["ingredients"].each do |ingredient|
-        ingredients[ingredient["name"]] = ingredient["amount"]*amount
+Product = Struct.new(:energy, :product_amount)
+
+class Grayphr
+    
+    def initialize(name, recipe_path)
+        @name = name
+        @recipe_path = recipe_path
+    end 
+
+    def recipes
+        @recipes ||= JSON.parse(File.read(@recipe_path)) 
     end
-    return ingredients   
-end
 
-def get_ingreds_recursive(product, amount = 1, product_ingreds = {})
-    # product to get_ingredients
-    (get_ingredients(product, amount) || {}).each do |ingredient, amount|
-        product_ingreds[ingredient] ||= {}
-        product_ingreds[ingredient][product] ||= 0
-        product_ingreds[ingredient][product] += amount
-        get_ingreds_recursive(ingredient, amount, product_ingreds)
+    def get_product(product_name)
+        Product.new(recipes[product_name]["energy"], recipes[product_name]['products'].select{|p| p["name"] == product_name}[0]['amount'])
     end
-    return product_ingreds
-end
 
-def graph_maker(product, amount = 1)
-    product_ingreds = get_ingreds_recursive(product, amount)
-    labels = {product => "#{product} x #{amount}"}
-    product_ingreds.each do |component, ingreds|
-        labels[component] = "#{component} x #{ingreds.values.sum}"
-    end
-    inglist = ["digraph G {"]
-    product_ingreds.each do |component, ingreds|
-        ingreds.each do |product, amount|
-            inglist.append "\"#{labels[component]}\" -> \"#{labels[product]}\"[label=\"#{amount}\"]"
+    def get_ingredients(product_name, amount = 1)
+        return nil if recipes[product_name].nil?
+        ingredients = {}
+        recipes[product_name]["ingredients"].each do |ingredient|
+            ingredients[ingredient["name"]] = ingredient["amount"]*amount
         end
+        return ingredients   
     end
-    return "https://dreampuf.github.io/GraphvizOnline/#" + URI::encode(inglist.append("}").join("\n"))
+
+    def get_ingreds_recursive(product_name, amount = 1, product_ingreds = {})
+        # product_name to get_ingredients
+        (get_ingredients(product_name, amount) || {}).each do |ingredient, amount|
+            product_ingreds[ingredient] ||= {}
+            product_ingreds[ingredient][product_name] ||= 0
+            product_ingreds[ingredient][product_name] += amount
+            get_ingreds_recursive(ingredient, amount, product_ingreds)
+        end
+        return product_ingreds
+    end
+
+    def make_graph(product_name, amount = 1)
+        product_ingreds = get_ingreds_recursive(product_name, amount)
+        labels = {product_name => "#{product_name} x #{amount}"}
+        product_ingreds.each do |component, ingreds|
+            labels[component] = "#{component} x #{ingreds.values.sum}"
+        end
+        inglist = ["digraph G {"]
+        product_ingreds.each do |component, ingreds|
+            ingreds.each do |product_name, amount|
+                inglist.append "\"#{labels[component]}\" -> \"#{labels[product_name]}\"[label=\"#{amount}\"]"
+            end
+        end
+        # puts "---MEOOOOooooOOOOOW I'm fat---"
+        puts """    
+         /\\**/\\
+        ( o_o  )_)     Meow.
+        ,(u  u  ,),
+       {}{}{}{}{}{}
+       """
+        return "https://dreampuf.github.io/GraphvizOnline/#" + URI::encode(inglist.append("}").join("\n"))
+    end
 end
-
-
-product = gets.chomp
-amount = gets.chomp.to_i
-puts graph_maker(product, amount)

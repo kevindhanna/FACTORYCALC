@@ -1,0 +1,2 @@
+(Number of Assembling Machines) = 
+[n / (Items Produced Per Crafting Cycle)] * [(Item Craft Time) / (Assembling Machine Speed)]
